@@ -16,6 +16,8 @@ echo 'deb http://rep.logentries.com/ wheezy main' >/etc/apt/sources.list.d/logen
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 aptitude update
 aptitude install logentries
+le register
+aptitude install logentries-daemon
 exit
 ```
 
@@ -28,6 +30,8 @@ echo 'deb http://rep.logentries.com/ jessie main' >/etc/apt/sources.list.d/logen
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 aptitude update
 aptitude install logentries
+le register
+aptitude install logentries-daemon
 exit
 ```
 
@@ -40,6 +44,8 @@ echo 'deb http://rep.logentries.com/ oneiric main' >/etc/apt/sources.list.d/loge
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 apt-get update
 apt-get install logentries
+le register
+apt-get install logentries-daemon
 exit
 ```
 
@@ -52,6 +58,8 @@ echo 'deb http://rep.logentries.com/ raring main' >/etc/apt/sources.list.d/logen
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 apt-get update
 apt-get install logentries
+le register
+apt-get install logentries-daemon
 exit
 ```
 
@@ -64,6 +72,8 @@ echo 'deb http://rep.logentries.com/ saucy main' >/etc/apt/sources.list.d/logent
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 aptitude update
 aptitude install logentries
+le register
+aptitude install logentries-daemon
 exit
 ```
 
@@ -76,6 +86,8 @@ echo 'deb http://rep.logentries.com/ trusty main' >/etc/apt/sources.list.d/logen
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 apt-get update
 apt-get install logentries
+le register
+apt-get install logentries-daemon
 exit
 ```
 
@@ -88,6 +100,8 @@ echo 'deb http://rep.logentries.com/ vivid main' >/etc/apt/sources.list.d/logent
 gpg --keyserver hkp://pgp.mit.edu:80 --recv-keys C43C79AD && gpg -a --export C43C79AD | apt-key add -
 apt-get update
 apt-get install logentries
+le register
+apt-get install logentries-daemon
 exit
 ```
 
@@ -106,6 +120,8 @@ gpgkey=http://rep.logentries.com/RPM-GPG-KEY-logentries
 EOF
 yum update
 yum install logentries
+le register
+yum install logentries-daemon
 exit
 ```
 
@@ -117,6 +133,8 @@ su -
 yum-config-manager --add-repo http://rep.logentries.com/helpers/fedora20/logentries.repo
 yum update
 yum install logentries
+le register
+yum install logentries-daemon
 exit
 ```
 
@@ -135,6 +153,8 @@ gpgkey=http://rep.logentries.com/RPM-GPG-KEY-logentries
 EOF
 yum update
 yum install logentries
+le register
+yum install logentries-daemon
 exit
 ```
 
@@ -153,6 +173,8 @@ baseurl=http://rep.logentries.com/centos\$releasever/\$basearch
 EOF
 yum update
 yum install logentries
+le register
+yum install logentries-daemon
 exit
 ```
 
@@ -171,6 +193,8 @@ baseurl=http://rep.logentries.com/centos\$releasever/\$basearch
 EOF
 yum update
 yum install logentries
+le register
+yum install logentries-daemon
 exit
 ```
 
