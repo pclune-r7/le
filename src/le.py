@@ -212,6 +212,18 @@ Where parameters are:
   --pull-server-side-config=False do not use server-side config for following files
 """
 
+# multilog option usage
+MULTILOG_USAGE = \
+"""
+Usage:
+  Agent is expecting a path name for a file, which should be between single quotes:
+        example: \'/var/log/directoryname/file.log\'
+  A * wildcard for expansion of directory name can be used. Only the one * wildcard is allowed.
+  Wildcard can not be used for expansion of filename, but for directory name only.
+  Place path name with wildcard between single quotes:
+        example: \"/var/log/directory*/file.log\"
+"""
+
 
 def print_usage(version_only=False):
     if version_only:
@@ -1461,6 +1473,26 @@ class Stats(object):
         if self.timer:
             self.timer.cancel()
 
+class FollowMultiple(object):
+    """
+    The FollowMultiple is responsible with handling those logs that were set-up using the
+    '--multilog' option and that may have a wildcard in the pathname.
+    In which case multiple local (log) files will be followed, but with all the new events
+    from all the files forwarded to the same single log in the logentries infrastructure.
+    """
+    #### THIS IS WORK IN PROGRESS ####
+
+    def __init__(self, name, entry_filter, entry_formatter, entry_identifier, transport ):
+        """ Initializes the FollowMultiple. """
+        self.name = name
+        self.flush = True
+        self.entry_filter = entry_filter
+        self.entry_formatter = entry_formatter
+        self.entry_identifier = entry_identifier
+        self.transport = transport
+
+
+
 
 class Follower(object):
 
@@ -2023,6 +2055,8 @@ class Config(object):
         self.uuid = False
         self.xlist = False
         self.yes = False
+        self.multilog = NOT_SET
+        # Behaviour associated with daemontools/multilog
 
         #proxy
         self.use_proxy = NOT_SET
@@ -2035,6 +2069,8 @@ class Config(object):
         # Enabled fine-grained logging
         self.debug = False
         # All recognized events are logged
+        self.debug_cmds = False
+        # Used with '--debug', log command line parameters
         self.debug_events = False
         # All transported events are logged
         self.debug_transport_events = False
@@ -2472,6 +2508,35 @@ class Config(object):
                     values[1])
         self.datahub = value
 
+    def validate_pathname(self, args):
+        """
+        For the '--multilog' option where a wildcard can be used in the directory name.
+        Validates the string that is passed to the agent (LOG-7549).
+        :param args: the pathname given to the agent
+        :return:    True if okay, the agent will die otherwise
+        """
+        pname_slice = args[1:]
+        # validate that a pathname is detected in parameters to agent
+        if len(pname_slice) == 0:
+            die("\nError: No pathname detected - Specify the path to the file to be followed\n" + MULTILOG_USAGE, EXIT_OK)
+        # validate that agent is not receiving a list of pathnames (possibly shell is expanding wildcard)
+        if len(pname_slice) > 1:
+            die("\nError: Too many arguments being passed to agent\n" + MULTILOG_USAGE, EXIT_OK)
+        pname = str(pname_slice[0])
+        filename = os.path.basename(pname)
+        # verify there is a filename
+        if not filename:
+            die("\nError: No filename detected - Specify the filename to be followed\n" + MULTILOG_USAGE, EXIT_OK)
+        # check if a wildcard detected in pathname
+        if '*' in pname:
+            # verify that only one wildcard is in pathname
+            if pname.count('*') > 1:
+                die("\nError: Only one wildcard * allowed\n" + MULTILOG_USAGE, EXIT_OK)
+            # verify that no wildcard is in filename
+            if '*' in filename:
+                die("\nError: No wildcard * allowed in filename\n" + MULTILOG_USAGE, EXIT_OK)
+        return True
+
     def process_params(self, params):
         """
         Parses command line parameters and updates config parameters accordingly
@@ -2483,7 +2548,7 @@ class Config(object):
                     std std-all name= hostname= type= pid-file= debug no-defaults
                     suppress-ssl use-ca-provided force-api-host= force-domain=
                     system-stat-token= datahub= legacy_v1_metrics
-                    pull-server-side-config= config= config.d="""
+                    pull-server-side-config= config= config.d= multilog"""
         try:
             optlist, args = getopt.gnu_getopt(params, '', param_list.split())
         except getopt.GetoptError, err:
@@ -2534,6 +2599,8 @@ class Config(object):
                 self.no_timestamps = True
             elif name == "--debug":
                 self.debug = True
+            elif name == "--debug-cmds":
+                self.debug_cmds = True
             elif name == "--debug-events":
                 self.debug_events = True
             elif name == "--debug-transport-events":
@@ -2577,6 +2644,9 @@ class Config(object):
                 self.pull_server_side_config = value == "True"
             elif name == "--datahub":
                 self.set_datahub_settings(value)
+            elif name == "--multilog":
+                # multilog is only True if pathname is good
+                self.multilog = self.validate_pathname(args)
 
         if self.datahub_ip and not self.datahub_port:
             if self.suppress_ssl:
@@ -3193,6 +3263,26 @@ def is_followed(filename):
             return True
     return False
 
+def get_log_names_for_files(filenames):
+    """
+    Checks if each file in a list of files is followed. Will only make the one call on the server!
+    If it is, gets the 'name' of the log for this file. If not, then a 'None' is used.
+    :param filenames:   the list of filenames of interest
+    :return:    returns a {} of filenames with either the
+                associated log name or 'None' for each file
+    """
+    if len(filenames) == 0:
+        die('\nWarning: List of filenames is empty\n')
+    host = request('hosts/%s/' % config.agent_key, True, True)
+    logs = host['list']
+    result = {}
+    for filename in filenames:
+        result[filename] = NOT_SET
+        for ilog in logs:
+            if ilog['follow'] == 'true' and filename == ilog['filename']:
+                result[filename] = str(ilog['name'])
+    return result
+
 
 def create_configured_logs(configured_logs):
     """ Get tokens for all configured logs. Logs with no token specified are
@@ -3324,6 +3414,107 @@ def cmd_follow(args):
 
     request_follow(filename, name, type_opt)
 
+
+def cmd_follow_multilog(args):
+    """
+    Follow the log(s) as defined in string passed to agent with
+    the '--multilog' parameter included - modification of cmd_follow
+    """
+    #### NOTE THAT BEHAVIOUR IS PROMPT USER TO CONTINUE THEN CALL request_follow
+    ####  TO SET UP A LOG WITH THE PATHANME PASSED TO THE AGENT
+
+    if len(args) == 0:
+        die("Error: Specify the file name of the log to follow.")
+    if len(args) > 1:
+        die("Error: Too many arguments.\n"
+            "A common mistake is to use wildcards in path that is being "
+            "expanded by shell. Enclose the path in single quotes to avoid "
+            "expansion.")
+
+    config.load()
+    config.agent_key_required()
+    # FIXME: follow to add logs into local configuration
+
+    arg = args[0]
+    pname = os.path.abspath(arg)
+    pnames = glob.glob(pname)
+    if len(pnames) == 0:
+        die('\nWarning: No Files found for %s\n' % pname)
+    files_with_log_names = get_log_names_for_files(pnames)
+    # user input required before new files are set to be followed
+    files_to_follow = user_prompt(files_with_log_names)
+    debug
+    for file in files_to_follow:
+        print "request to follow %s " % file
+    ### AT THIS TIME IGNORING THE LIST OF FILES RETURNED
+    ### file_to_follow AS NEED TO CONFIRM AGENT BEHAVIOUR
+    name = config.name
+    if name == NOT_SET:
+        name = os.path.basename(pname)
+    type_opt = config.type_opt
+    if type_opt == NOT_SET:
+        type_opt = ""
+    filename = "Multiple:" + pname
+    request_follow(filename, name, type_opt)
+
+def user_prompt(files_and_log_names):
+    """
+    Displays 2 lists - files already followed with log names, and those not.
+    Prompts user if they wish to follow files or not
+    """
+    ### NOTE THAT THIS WILL NEED REVIEW AND EXPECT TO CHANGE
+    ### THE OUTPUT WAS MADE UP ON THE SPOT AND THE EXPECTED
+    ### OPTIONS MAY CHANGE AS WELL AS THE TEXT
+    ### THIS USER PROMPT MAY OVER COMPLICATED THINGS
+
+    files_already_followed = {}
+    files_not_followed = {}
+    for filename, logname in files_and_log_names.items():
+        #if debug here
+        #print "filename: %s and logname: %s" % (filename, logname)
+        if logname is NOT_SET:
+            files_not_followed[filename] = NOT_SET
+        else:
+            files_already_followed[filename] = logname
+    num_already_followed = len(files_already_followed)
+    num_not_followed =  len(files_not_followed)
+    print "\nFiles found already being followed, Total %s:" % num_already_followed
+    # print files being followed if any
+    if num_already_followed == 0:
+        print "\t\n No files found that are being followed."
+    else:
+        print "LOGNAME \t FILENAME"
+        for filename, logname in files_and_log_names.items():
+            if logname is not None:
+                print "%s \t %s" % (logname, filename)
+    # print files not be being followed if any
+    if num_not_followed == 0:
+        print "\nAll files found are already being followed\n"
+        sys.exit(EXIT_OK)
+    else:
+        print "\nFiles found not being followed, Total %s:" % num_not_followed
+        print "\n".join(files_not_followed)
+    # prompt user with options to follow files
+    while True:
+        print "\nSelect one of the follow options: 0, 1 or 2"
+        print "0 quit"
+        print "1 Follow only the %s files not currently being followed?" % num_not_followed
+        print "2 Assign all files found, being followed or not, to the one log"
+        user_resp = raw_input(':')
+        try:
+            user_resp = int(user_resp)
+        except ValueError:
+            print "Please try again: 0, 1, or 2"
+        else:
+            if user_resp == 0:
+                print "decided to quit"
+                sys.exit(EXIT_OK)
+            elif user_resp == 1:
+                print "follow only those not yet followed"
+                return files_not_followed
+            elif user_resp == 2:
+                print "all files to be assigned to the same log"
+                return files_and_log_names
 
 def cmd_followed(args):
     """
@@ -3566,6 +3757,9 @@ def main_root():
     if config.debug_loglist:
         die(collect_log_names(system_detect(True)))
 
+    if config.debug_cmds:
+        log.debug('command line: %s', args)
+
     argv0 = sys.argv[0]
     if argv0 and argv0 != '':
         pname = os.path.basename(argv0).split('-')
@@ -3593,7 +3787,10 @@ def main_root():
     }
     for cmd, func in commands.items():
         if cmd == args[0]:
-            return func(args[1:])
+            if config.multilog and cmd == 'follow':
+                return cmd_follow_multilog(args[1:])
+            else:
+                return func(args[1:])
     die('Error: Unknown command "%s".' % args[0])
 
 
