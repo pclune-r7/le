@@ -1475,7 +1475,7 @@ class Stats(object):
 
 class FollowMultiple(object):
     """
-    The FollowMultiple is responsible with handling those logs that were set-up using the
+    The FollowMultiple is responsible for handling those logs that were set-up using the
     '--multilog' option and that may have a wildcard in the pathname.
     In which case multiple local (log) files will be followed, but with all the new events
     from all the files forwarded to the same single log in the logentries infrastructure.
@@ -2068,9 +2068,11 @@ class Config(object):
 
         # Enabled fine-grained logging
         self.debug = False
+        # Command line args to stderr
+        self.debug_cmd_line = False
+        # Multilog specific debugging to stderr
+        self.debug_multilog = False
         # All recognized events are logged
-        self.debug_cmds = False
-        # Used with '--debug', log command line parameters
         self.debug_events = False
         # All transported events are logged
         self.debug_transport_events = False
@@ -2544,11 +2546,11 @@ class Config(object):
         param_list = """user-key= account-key= agent-key= host-key= no-timestamps debug-events
                     debug-transport-events debug-metrics
                     debug-filters debug-formatters debug-loglist local debug-stats debug-nostats
-                    debug-stats-only debug-cmds debug-system help version yes force uuid list
+                    debug-stats-only debug-cmd-line debug-system help version yes force uuid list
                     std std-all name= hostname= type= pid-file= debug no-defaults
                     suppress-ssl use-ca-provided force-api-host= force-domain=
                     system-stat-token= datahub= legacy_v1_metrics
-                    pull-server-side-config= config= config.d= multilog"""
+                    pull-server-side-config= config= config.d= multilog debug-multilog"""
         try:
             optlist, args = getopt.gnu_getopt(params, '', param_list.split())
         except getopt.GetoptError, err:
@@ -2599,8 +2601,10 @@ class Config(object):
                 self.no_timestamps = True
             elif name == "--debug":
                 self.debug = True
-            elif name == "--debug-cmds":
-                self.debug_cmds = True
+            elif name == "--debug-cmd-line":
+                self.debug_cmd_line = True
+            elif name == "--debug-multilog":
+                self.debug_multilog = True
             elif name == "--debug-events":
                 self.debug_events = True
             elif name == "--debug-transport-events":
@@ -3443,9 +3447,9 @@ def cmd_follow_multilog(args):
     files_with_log_names = get_log_names_for_files(pnames)
     # user input required before new files are set to be followed
     files_to_follow = user_prompt(files_with_log_names)
-    debug
-    for file in files_to_follow:
-        print "request to follow %s " % file
+    if config.debug_multilog:
+        for file in files_to_follow:
+            print >> sys.stderr, "request to follow %s " % file
     ### AT THIS TIME IGNORING THE LIST OF FILES RETURNED
     ### file_to_follow AS NEED TO CONFIRM AGENT BEHAVIOUR
     name = config.name
@@ -3457,7 +3461,7 @@ def cmd_follow_multilog(args):
     filename = "Multiple:" + pname
     request_follow(filename, name, type_opt)
 
-def user_prompt(files_and_log_names):
+def user_prompt(files_with_log_names):
     """
     Displays 2 lists - files already followed with log names, and those not.
     Prompts user if they wish to follow files or not
@@ -3469,7 +3473,7 @@ def user_prompt(files_and_log_names):
 
     files_already_followed = {}
     files_not_followed = {}
-    for filename, logname in files_and_log_names.items():
+    for filename, logname in files_with_log_names.items():
         #if debug here
         #print "filename: %s and logname: %s" % (filename, logname)
         if logname is NOT_SET:
@@ -3484,7 +3488,7 @@ def user_prompt(files_and_log_names):
         print "\t\n No files found that are being followed."
     else:
         print "LOGNAME \t FILENAME"
-        for filename, logname in files_and_log_names.items():
+        for filename, logname in files_with_log_names.items():
             if logname is not None:
                 print "%s \t %s" % (logname, filename)
     # print files not be being followed if any
@@ -3514,7 +3518,7 @@ def user_prompt(files_and_log_names):
                 return files_not_followed
             elif user_resp == 2:
                 print "all files to be assigned to the same log"
-                return files_and_log_names
+                return files_with_log_names
 
 def cmd_followed(args):
     """
@@ -3757,8 +3761,8 @@ def main_root():
     if config.debug_loglist:
         die(collect_log_names(system_detect(True)))
 
-    if config.debug_cmds:
-        log.debug('command line: %s', args)
+    if config.debug_cmd_line:
+        print >> sys.stderr, 'Debug command line args: %s' % args
 
     argv0 = sys.argv[0]
     if argv0 and argv0 != '':
