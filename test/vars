@@ -50,7 +50,6 @@ function finish {
 	fi
 	if [ -n "$DATA_MOCK_PID" ]; then
 		kill $DATA_MOCK_PID 2>/dev/null || true
-
 	fi
 	if [ -z "$AUTO_TEST" ] ; then
 		rm -rf -- "$TMP"

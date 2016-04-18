@@ -80,6 +80,10 @@ EMBEDDED_STRUCTURES = {
     "http": "803fe7ba-bd2e-44bd-8ee7-f02fa253ef5f",
 }
 
+# Multilog option related
+MAX_MULTIPLE_FILES_FOLLOWED = 100
+PREFIX_MULTIPLE_FILENAME = "Multiple:"
+
 
 class Domain(object):
 
@@ -1491,8 +1495,59 @@ class FollowMultiple(object):
         self.entry_identifier = entry_identifier
         self.transport = transport
 
+        self._shutdown = False
+        # make cofigurable!!
+        self._MAX_FILES_ALLOWED=10
+        self._followers = []
+        self._worker = threading.Thread(
+            target=self.start_followers, name=self.name)
+        self._worker.daemon = True
+        self._worker.start()
 
 
+    def _file_candidates(self):
+        """
+        return a list of files found for the pathanme passed in
+         need to switch off the globing in each follower!!!!!
+         we put the max here
+         also the dynmaic action will be called from here
+        """
+        try:
+            candidates = glob.glob(self.name)
+            if len(candidates) == 0:
+                return None
+            # here do so magic to manage the max number
+            # and the dynamic stuff on the files
+            return candidates
+        except os.error:
+            return None
+
+    def close(self):
+        """
+        Stops all FollowMultiple activity, and then loops through list of existing
+        followers to close each one - then waits for the worker thread to stop.
+        """
+        self._shutdown = True
+        #run through list of followers closing each one
+        for follower in self._followers:
+            follower.close()
+        self._worker.join(1.0)
+
+    def start_followers(self):
+        """
+         Instantiates a Follower object for each file found - all log events from all
+         files are forwarded to the same log in the lE infrastructure
+        """
+        ## WIP!
+        cnt = 0
+        file_candidates = self._file_candidates()
+        for filename in file_candidates:
+            if cnt < self._MAX_FILES_ALLOWED:
+                log.info("loop num: %s", cnt)
+                log.info("FollowMultiple Follower self.name %s", self.name)
+                follower = Follower(filename, self.entry_filter, self.entry_formatter, self.entry_identifier, self.transport)
+                self._followers.append(follower)
+                cnt = cnt+1
 
 class Follower(object):
 
@@ -3111,9 +3166,11 @@ def start_followers(default_transport):
     Loads logs from the server (or configuration) and initializes followers.
     """
     noticed = False
+    multiple_filename = False
     logs = []
     followers = []
     transports = []
+    follow_multiples = []
 
     if config.pull_server_side_config:
         # Use LE server as the source for list of followed logs
@@ -3188,9 +3245,16 @@ def start_followers(default_transport):
             if l['type'] == 'token':
                 log_token = l['token']
 
+            log.info("Prior to prefix removal:log_filename %s",log_filename )
+            if log_filename.startswith(PREFIX_MULTIPLE_FILENAME):
+                multiple_filename = True
+                log_filename = log_filename.replace(PREFIX_MULTIPLE_FILENAME,'',1).lstrip()
+            log.info("After prefix removal:log_filename %s",log_filename )
+
             # Do not start a follower for a log with absent filepath.
             if not check_file_name(log_filename):
                 continue
+            log.info("After check_file_nmae:log_filename %s",log_filename )
 
             entry_filter = get_filters(available_filters, filter_filenames,
                                        log_name, log_key, log_filename,
@@ -3251,10 +3315,17 @@ def start_followers(default_transport):
             if not entry_formatter:
                 entry_formatter = formats.get_formatter('syslog', config.hostname, log_name, log_token)
 
-            # Instantiate the follower
-            follower = Follower(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
-            followers.append(follower)
-    return (followers, transports)
+            # Instantiate the follow_multiple for 'multilog' filename, otherwise the individual follower
+            if multiple_filename:
+                log.info("Multiple log_filename is %s", log_filename)
+                follow_multiple = FollowMultiple(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
+                follow_multiples.append(follow_multiple)
+                multiple_filename=False
+            else:
+                log.info("log_filename is %s", log_filename)
+                follower = Follower(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
+                followers.append(follower)
+    return (followers, transports, follow_multiples)
 
 
 def is_followed(filename):
@@ -3349,10 +3420,11 @@ def cmd_monitor(args):
 
     followers = []
     transports = []
+    follow_multiples = []
     try:
         # Load logs to follow and start following them
         if not config.debug_stats_only:
-            (followers, transports) = start_followers(default_transport)
+            (followers, transports, follow_multiples) = start_followers(default_transport)
 
         # Park this thread
         while True:
@@ -3369,6 +3441,9 @@ def cmd_monitor(args):
     # Close followers
     for follower in followers:
         follower.close()
+    # Close each followmultiple and the followers it holds
+    for follow_multiple in follow_multiples:
+        follow_multiple.close()
     # Close transports
     for transport in transports:
         transport.close()
@@ -3458,7 +3533,7 @@ def cmd_follow_multilog(args):
     type_opt = config.type_opt
     if type_opt == NOT_SET:
         type_opt = ""
-    filename = "Multiple:" + pname
+    filename = PREFIX_MULTIPLE_FILENAME + pname
     request_follow(filename, name, type_opt)
 
 def user_prompt(files_with_log_names):
