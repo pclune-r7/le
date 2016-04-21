@@ -67,7 +67,7 @@ How to use
 	--suppress-ssl    do not use SSL with API server
 	--yes	          always respond yes
 	--pull-server-side-config=False do not use server-side config for following files
-	--multilog        option used with directory wildcard (restricted behaviour - see below fo details)
+	--multilog        option used with directory wildcard (restricted behaviour - see below for details)
 
 
 Repositories
@@ -350,8 +350,8 @@ that is being applied.
 For example the following two examples result in a subset of directories with the
 same log file falling within the scope of both destination directories:
   
-    le follow '/var/log/apache*/apache.log' --multilog [--name Apace]
-    le follow '/var/log/*/apache.log' --multilog [--name WebLogs]  
+    le follow '/var/log/apache*/apache.log' --multilog --name=Apace
+    le follow '/var/log/*/apache.log' --multilog --name=WebLogs
   
 It is recommended to avoid scenarios like this.
 

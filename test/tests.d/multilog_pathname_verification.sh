@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-
 . vars
 
 #############                                                      ##############
-#       "multilog workflow"                                                     #
-#       test scenarios: verification of pathname passed to agent,                #
+#       "multilog pathname verification"                                        #
+#       test scenarios: verification of pathname passed to agent,               #
 #       with the --multilog parameter                                           #
 #                                                                               #
 #############                                                      ##############
@@ -155,15 +154,5 @@ $LE follow  '' --multilog
 #e   Wildcard can not be used for expansion of filename, but for directory name only.
 #e   Place path name with wildcard between single quotes:
 #e         example: "/var/log/directory*/file.log"
-#e
-
-
-Testcase 'Warning message displayed when no file found with valid pathname'
-# this test case will need to be changed/deleted when 'dynamic' file following behaviour introduced
-
-$LE follow '/apache-01/newlog' --multilog
-#eConfiguration files loaded: sandbox_config
-#e
-#eWarning: No Files found for /apache-01/newlog
 #e
 

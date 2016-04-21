@@ -119,4 +119,11 @@ kill $LE_PID
 # todo want to test the use of --name
 
 
+Testcase 'Warning message displayed when no file found with valid pathname'
+# this test case will need to be changed/deleted when 'dynamic' file following behaviour introduced
 
+$LE follow '/apache-01/newlog' --multilog
+#eConfiguration files loaded: sandbox_config
+#e
+#eWarning: No Files found for /apache-01/newlog
+#e

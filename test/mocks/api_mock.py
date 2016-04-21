@@ -53,7 +53,7 @@ LOG2 = {
     "object":"log",
     "key":LOG2_KEY,
     "name":"current",
-    "filename":CWD +"/apache-01/current",
+    "filename":"Multiple:" + CWD +"/apache-01/current",
     "created":1418711930412,
     "type":"agent",
     "follow":"true",
@@ -65,7 +65,7 @@ LOG3 = {
     "object":"log",
     "key":LOG3_KEY,
     "name":"Apache",
-    "filename":CWD +"/apache*/current",
+    "filename":"Multiple:" + CWD +"/apache*/current",
     "created":1418711930412,
     "type":"agent",
     "follow":"true",
@@ -143,6 +143,13 @@ class ApiHandler( cyclone.web.RequestHandler):
                     'response': 'ok',
                     'log_key': LOG1_KEY,
                     'log': LOG1,
+                    'worker': 'a0',
+                }))
+            elif host_key == HOST2_KEY:
+                self.write( json.dumps( {
+                    'response': 'ok',
+                    'log_key': LOG2_KEY,
+                    'log': LOG2,
                     'worker': 'a0',
                 }))
         elif request == 'get_user':

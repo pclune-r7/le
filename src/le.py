@@ -82,7 +82,7 @@ EMBEDDED_STRUCTURES = {
 
 # Multilog option related
 MAX_FILES_FOLLOWED = 100
-PREFIX_MULTIPLE_FILENAME = "Multiple:"
+PREFIX_MULTILOG_FILENAME = "Multilog:"
 
 
 class Domain(object):
@@ -214,6 +214,7 @@ Where parameters are:
                           the format is address:port with port being optional
   --system-stat-token=    set the token for system stats log (beta)
   --pull-server-side-config=False do not use server-side config for following files
+  --multilog              option used with directory wildcard * (restricted behaviour)
 """
 
 # multilog option usage
@@ -1477,16 +1478,16 @@ class Stats(object):
         if self.timer:
             self.timer.cancel()
 
-class FollowMultiple(object):
+class FollowMultilog(object):
     """
-    The FollowMultiple is responsible for handling those logs that were set-up using the
+    The FollowMultilog is responsible for handling those logs that were set-up using the
     '--multilog' option and that may have a wildcard in the pathname.
     In which case multiple local (log) files will be followed, but with all the new events
     from all the files forwarded to the same single log in the logentries infrastructure.
     """
 
     def __init__(self, name, entry_filter, entry_formatter, entry_identifier, transport, max_num_followers=MAX_FILES_FOLLOWED ):
-        """ Initializes the FollowMultiple. """
+        """ Initializes the FollowMultilog. """
         self.name = name
         self.flush = True
         self.entry_filter = entry_filter
@@ -1533,7 +1534,7 @@ class FollowMultiple(object):
 
     def close(self):
         """
-        Stops all FollowMultiple activity, and then loops through list of existing
+        Stops all FollowMultilog activity, and then loops through list of existing
         followers to close each one - then waits for the worker thread to stop.
         """
         self._shutdown = True
@@ -1553,8 +1554,7 @@ class FollowMultiple(object):
         for filename in file_candidates:
             if self._file_test(filename):
                 if file_count < self._max_num_followers:
-                    follower = Follower(filename, self.entry_filter, self.entry_formatter, self.entry_identifier, self.transport)
-                    #todo disable glob on follower?
+                    follower = Follower(filename, self.entry_filter, self.entry_formatter, self.entry_identifier, self.transport, True)
                     self._followers.append(follower)
                     file_count = file_count+1
                 else:
@@ -1568,7 +1568,7 @@ class Follower(object):
     The follower keeps an eye on the file specified and sends new events to the
     logentries infrastructure.  """
 
-    def __init__(self, name, entry_filter, entry_formatter, entry_identifier, transport):
+    def __init__(self, name, entry_filter, entry_formatter, entry_identifier, transport, disable_glob=False):
         """ Initializes the follower. """
         self.name = name
         self.flush = True
@@ -1576,6 +1576,8 @@ class Follower(object):
         self.entry_formatter = entry_formatter
         self.entry_identifier = entry_identifier
         self.transport = transport
+        # FollowMultilog usage
+        self._disable_glob = disable_glob
 
         self._file = None
         self._shutdown = False
@@ -1611,7 +1613,12 @@ class Follower(object):
         self.real_name = None
 
         while not self._shutdown:
-            candidate = self._file_candidate()
+
+            # FollowMultilog usage
+            if self._disable_glob:
+                candidate = self.name
+            else:
+                candidate = self._file_candidate()
 
             if candidate:
                 self.real_name = candidate
@@ -3179,11 +3186,11 @@ def start_followers(default_transport):
     Loads logs from the server (or configuration) and initializes followers.
     """
     noticed = False
-    multiple_filename = False
+    multilog_filename = False
     logs = []
     followers = []
     transports = []
-    follow_multiples = []
+    follow_multilogs = []
 
     if config.pull_server_side_config:
         # Use LE server as the source for list of followed logs
@@ -3259,9 +3266,9 @@ def start_followers(default_transport):
                 log_token = l['token']
 
             # todo log.info("Prior to prefix removal:log_filename %s",log_filename )
-            if log_filename.startswith(PREFIX_MULTIPLE_FILENAME):
-                multiple_filename = True
-                log_filename = log_filename.replace(PREFIX_MULTIPLE_FILENAME,'',1).lstrip()
+            if log_filename.startswith(PREFIX_MULTILOG_FILENAME):
+                multilog_filename = True
+                log_filename = log_filename.replace(PREFIX_MULTILOG_FILENAME,'',1).lstrip()
             # todo log.info("After prefix removal:log_filename %s",log_filename )
 
             # Do not start a follower for a log with absent filepath.
@@ -3294,7 +3301,7 @@ def start_followers(default_transport):
             else:
                 entry_identifier = None
 
-                log.info("Following %s", log_filename)
+            log.info("Following %s", log_filename)
 
             if log_token or config.datahub:
                 transport = default_transport.get()
@@ -3328,17 +3335,17 @@ def start_followers(default_transport):
             if not entry_formatter:
                 entry_formatter = formats.get_formatter('syslog', config.hostname, log_name, log_token)
 
-            # Instantiate the follow_multiple for 'multilog' filename, otherwise the individual follower
-            if multiple_filename:
-                # todo log.info("Multiple log_filename is %s", log_filename)
-                follow_multiple = FollowMultiple(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
-                follow_multiples.append(follow_multiple)
-                multiple_filename=False
+            # Instantiate the follow_multilog for 'multilog' filename, otherwise the individual follower
+            if multilog_filename:
+                # todo log.info("Multilog log_filename is %s", log_filename)
+                follow_multilog = FollowMultilog(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
+                follow_multilogs.append(follow_multilog)
+                multilog_filename=False
             else:
                 # todo log.info("log_filename is %s", log_filename)
                 follower = Follower(log_filename, entry_filter, entry_formatter, entry_identifier, transport)
                 followers.append(follower)
-    return (followers, transports, follow_multiples)
+    return (followers, transports, follow_multilogs)
 
 
 def is_followed(filename):
@@ -3448,11 +3455,11 @@ def cmd_monitor(args):
 
     followers = []
     transports = []
-    follow_multiples = []
+    follow_multilogs = []
     try:
         # Load logs to follow and start following them
         if not config.debug_stats_only:
-            (followers, transports, follow_multiples) = start_followers(default_transport)
+            (followers, transports, follow_multilogs) = start_followers(default_transport)
 
         # Park this thread
         while True:
@@ -3469,9 +3476,9 @@ def cmd_monitor(args):
     # Close followers
     for follower in followers:
         follower.close()
-    # Close each followmultiple and the followers it holds
-    for follow_multiple in follow_multiples:
-        follow_multiple.close()
+    # Close each follow_multilog and the followers it holds
+    for follow_multilog in follow_multilogs:
+        follow_multilog.close()
     # Close transports
     for transport in transports:
         transport.close()
@@ -3546,7 +3553,7 @@ def cmd_follow_multilog(args):
         type_opt = config.type_opt
         if type_opt == NOT_SET:
             type_opt = ""
-        filename = PREFIX_MULTIPLE_FILENAME + path
+        filename = PREFIX_MULTILOG_FILENAME + path
         request_follow(filename, name, type_opt)
 
 def user_prompt(path):
@@ -3555,47 +3562,49 @@ def user_prompt(path):
     Prompts user if they wish to follow files or not
     """
     # todo use enums on user options
-
-    file_candidates = glob.glob(path)
-    loglist_with_paths = get_loglist_with_paths()
-    identical_path = False
-    print "\nExisting destination Logs for this host and the associated Paths are:"
-    print('\t{0:50}{1}'.format('LOGNAME', 'PATH'))
-    for logname, filepath in loglist_with_paths.items():
-        # test if an identical path is already in use!
-        if path == filepath.replace(PREFIX_MULTIPLE_FILENAME,'',1).lstrip():
-            identical_path = True
-            print('\t{0:40}{1:10}{2}'.format(logname,"IDENTICAL", filepath))
-        else:
-            print('\t{0:50}{1}'.format(logname, filepath))
-    print "\nThe path now being requested to be used is: %s" % path
-    if identical_path:
-        print "NOTE: there are destination logs in above list with identical paths."
-    if len(file_candidates) == 0:
-        die('\nNo Files were found for this path. Agent has quit.\n')
+    if config.debug_multilog:
+        #for debugging ignore user input
+        return True
     else:
-        print "\nFiles found for this path: \n"
-        file_count = 0
-        for filename in file_candidates:
-            if file_count < MAX_FILES_FOLLOWED:
-                print str(filename)
-        print "It is important to note that this is only a representative list of files."
-    while True:
-        print "\nSelect one of the follow options:"
-        print "0 - to quit"
-        print "1 - to use new path to follow files"
-        user_resp = raw_input(':')
-        try:
-            user_resp = int(user_resp)
-        except ValueError:
-             print "Please try again: 0 or 1"
+        file_candidates = glob.glob(path)
+        loglist_with_paths = get_loglist_with_paths()
+        identical_path = False
+        print "\nExisting destination Logs for this host and the associated Paths are:"
+        print('\t{0:50}{1}'.format('LOGNAME', 'PATH'))
+        for logname, filepath in loglist_with_paths.items():
+            # test if an identical path is already in use!
+            if path == filepath.replace(PREFIX_MULTILOG_FILENAME,'',1).lstrip():
+                identical_path = True
+                print('\t{0:40}{1:10}{2}'.format(logname,"IDENTICAL", filepath))
+            else:
+                print('\t{0:50}{1}'.format(logname, filepath))
+        print "\nThe path now being requested to be used is: %s" % path
+        if identical_path:
+            print "NOTE: there are destination logs in above list with identical paths."
+        if len(file_candidates) == 0:
+            die('\nNo Files were found for this path. Agent has quit.\n')
         else:
-            if user_resp == 0:
-                print "DEBUG:decided to quit"
-                sys.exit(EXIT_OK)
-            elif user_resp == 1:
-                print "DEBUG:follow only those not yet followed"
-                return True
+            print "\nFiles found for this path:"
+            file_count = 0
+            for filename in file_candidates:
+                if file_count < MAX_FILES_FOLLOWED:
+                    print ('{0:4}\t{1}'.format(file_count+1, filename))
+                    file_count = file_count+1
+            print "\nIt is important to note that this is only a representative list of files."
+        while True:
+            print "\nSelect one of the follow options:"
+            print "0 - to quit"
+            print "1 - to use new path to follow files"
+            user_resp = raw_input(':')
+            try:
+                user_resp = int(user_resp)
+            except ValueError:
+                 print "Please try again: 0 or 1"
+            else:
+                if user_resp == 0:
+                    sys.exit(EXIT_OK)
+                elif user_resp == 1:
+                    return True
 
 def cmd_followed(args):
     """
