@@ -23,6 +23,7 @@ LOG0_KEY = "400da462-36fa-48f4-bb4e-87f96ad34e8a"
 LOG1_KEY = "ee0489cc-41ce-41cf-9bb6-4cdf5e5acf32"
 LOG2_KEY = "484d6e95-a4e1-42fe-820f-5a4c0824428c"
 LOG3_KEY = "fa32313c-3907-4214-ac41-3ff9c6549a22"
+LOG_DYNAMIC_KEY = "32fa313c-4c70-4214-9bb6-3ff9c6549a22"
 
 LOG0 = {
     "object":"log",
@@ -52,8 +53,8 @@ LOG1 = {
 LOG2 = {
     "object":"log",
     "key":LOG2_KEY,
-    "name":"current",
-    "filename":"Multiple:" + CWD +"/apache-01/current",
+    "name":"Apache",
+    "filename":"Multilog:" + CWD +"/apache*/current",
     "created":1418711930412,
     "type":"agent",
     "follow":"true",
@@ -64,8 +65,8 @@ LOG2 = {
 LOG3 = {
     "object":"log",
     "key":LOG3_KEY,
-    "name":"Apache",
-    "filename":"Multiple:" + CWD +"/apache*/current",
+    "name":"current",
+    "filename":"Multilog:" + CWD +"/apache-01/current",
     "created":1418711930412,
     "type":"agent",
     "follow":"true",
@@ -146,10 +147,22 @@ class ApiHandler( cyclone.web.RequestHandler):
                     'worker': 'a0',
                 }))
             elif host_key == HOST2_KEY:
+                logname = self.get_argument('name')
+                filename = self.get_argument('filename')
+                follow = self.get_argument('follow')
                 self.write( json.dumps( {
                     'response': 'ok',
-                    'log_key': LOG2_KEY,
-                    'log': LOG2,
+                    'log_key': LOG_DYNAMIC_KEY,
+                    'log': {
+                        "object":"log",
+                        "key":LOG_DYNAMIC_KEY,
+                        "name":logname,
+                        "filename":filename,
+                        "created":1418711930412,
+                        "type":"agent",
+                        "follow":follow,
+                        "retention":-1,
+                    },
                     'worker': 'a0',
                 }))
         elif request == 'get_user':
@@ -224,7 +237,7 @@ class HostLogsHandler( cyclone.web.RequestHandler):
         elif host_id in [HOST2_KEY, HOST2['name']]:
             self.write( response_ok( {
                 "object":"loglist",
-                "list":[LOG2, LOG3],
+                "list":[LOG2],
             }))
         else:
             raise cyclone.web.HTTPError( 403)

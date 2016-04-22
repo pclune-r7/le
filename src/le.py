@@ -3545,7 +3545,11 @@ def cmd_follow_multilog(args):
     config.agent_key_required()
     arg = args[0]
     path = os.path.abspath(arg)
-    follow = user_prompt(path)
+    # when testing ignore user input
+    if config.debug_multilog:
+        follow = True
+    else:
+        follow = user_prompt(path)
     if follow:
         name = config.name
         if name == NOT_SET:
@@ -3562,49 +3566,45 @@ def user_prompt(path):
     Prompts user if they wish to follow files or not
     """
     # todo use enums on user options
-    if config.debug_multilog:
-        #for debugging ignore user input
-        return True
-    else:
-        file_candidates = glob.glob(path)
-        loglist_with_paths = get_loglist_with_paths()
-        identical_path = False
-        print "\nExisting destination Logs for this host and the associated Paths are:"
-        print('\t{0:50}{1}'.format('LOGNAME', 'PATH'))
-        for logname, filepath in loglist_with_paths.items():
-            # test if an identical path is already in use!
-            if path == filepath.replace(PREFIX_MULTILOG_FILENAME,'',1).lstrip():
-                identical_path = True
-                print('\t{0:40}{1:10}{2}'.format(logname,"IDENTICAL", filepath))
-            else:
-                print('\t{0:50}{1}'.format(logname, filepath))
-        print "\nThe path now being requested to be used is: %s" % path
-        if identical_path:
-            print "NOTE: there are destination logs in above list with identical paths."
-        if len(file_candidates) == 0:
-            die('\nNo Files were found for this path. Agent has quit.\n')
+    file_candidates = glob.glob(path)
+    loglist_with_paths = get_loglist_with_paths()
+    identical_path = False
+    print "\nExisting destination Logs for this host and the associated Paths are:"
+    print('\t{0:50}{1}'.format('LOGNAME', 'PATH'))
+    for logname, filepath in loglist_with_paths.items():
+        # test if an identical path is already in use!
+        if path == filepath.replace(PREFIX_MULTILOG_FILENAME,'',1).lstrip():
+            identical_path = True
+            print('\t{0:40}{1:10}{2}'.format(logname,"IDENTICAL", filepath))
         else:
-            print "\nFiles found for this path:"
-            file_count = 0
-            for filename in file_candidates:
-                if file_count < MAX_FILES_FOLLOWED:
-                    print ('{0:4}\t{1}'.format(file_count+1, filename))
-                    file_count = file_count+1
-            print "\nIt is important to note that this is only a representative list of files."
-        while True:
-            print "\nSelect one of the follow options:"
-            print "0 - to quit"
-            print "1 - to use new path to follow files"
-            user_resp = raw_input(':')
-            try:
-                user_resp = int(user_resp)
-            except ValueError:
-                 print "Please try again: 0 or 1"
-            else:
-                if user_resp == 0:
-                    sys.exit(EXIT_OK)
-                elif user_resp == 1:
-                    return True
+            print('\t{0:50}{1}'.format(logname, filepath))
+    print "\nThe path now being requested to be used is: %s" % path
+    if identical_path:
+        print "NOTE: there are destination logs in above list with identical paths."
+    if len(file_candidates) == 0:
+        die('\nNo Files were found for this path. Agent has quit.\n')
+    else:
+        print "\nFiles found for this path:"
+        file_count = 0
+        for filename in file_candidates:
+            if file_count < MAX_FILES_FOLLOWED:
+                print ('{0:4}\t{1}'.format(file_count+1, filename))
+                file_count = file_count+1
+        print "\nIt is important to note that this is only a representative list of files."
+    while True:
+        print "\nSelect one of the follow options:"
+        print "0 - to quit"
+        print "1 - to use new path to follow files"
+        user_resp = raw_input(':')
+        try:
+            user_resp = int(user_resp)
+        except ValueError:
+             print "Please try again: 0 or 1"
+        else:
+            if user_resp == 0:
+                sys.exit(EXIT_OK)
+            elif user_resp == 1:
+                return True
 
 def cmd_followed(args):
     """

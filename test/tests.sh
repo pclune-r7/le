@@ -28,6 +28,7 @@ for A in ${TESTS[*]} ; do
 
 	# Create temporary directory for storing test's outputs
 	export TMP=$(mktemp -d)
+	export SUBDIR=${TMP:5}
 
 	EXPECTED_STDOUT=$TMP/expected_stdout
 	EXPECTED_STDERR=$TMP/expected_stderr
@@ -37,8 +38,8 @@ for A in ${TESTS[*]} ; do
 	export XDG_CACHE_HOME=$TMP
 
 	# Extract expected output and real output (by running the test scenario)
-	sed -n -e 's/^#o \?\(.*\)$/\1/p' -e 's/^\(Scenario .*\)$/\n\n\1\n\n/p' -e 's/^\(Testcase .*\)$/\n\1\n/p' -- "$A" | sed "s|\$TMP|$TMP|g" >"$EXPECTED_STDOUT"
-	sed -n -e 's/^#e \?\(.*\)$/\1/p' -e 's/^\(Scenario .*\)$/\n\n\1\n\n/p' -e 's/^\(Testcase .*\)$/\n\1\n/p' -- "$A" | sed "s|\$TMP|$TMP|g" >"$EXPECTED_STDERR"
+	sed -n -e 's/^#o \?\(.*\)$/\1/p' -e 's/^\(Scenario .*\)$/\n\n\1\n\n/p' -e 's/^\(Testcase .*\)$/\n\1\n/p' -- "$A" | sed "s|\$TMP|$TMP|g" | sed "s|\$SUBDIR|$SUBDIR|g" >"$EXPECTED_STDOUT"
+	sed -n -e 's/^#e \?\(.*\)$/\1/p' -e 's/^\(Scenario .*\)$/\n\n\1\n\n/p' -e 's/^\(Testcase .*\)$/\n\1\n/p' -- "$A" | sed "s|\$TMP|$TMP|g" | sed "s|\$SUBDIR|$SUBDIR|g" >"$EXPECTED_STDERR"
 
 	for key in "${!TEMPLATES[@]}" ; do
 		sed -i "s!%$key%!${TEMPLATES[$key]}!g" $EXPECTED_STDERR

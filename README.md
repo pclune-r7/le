@@ -191,6 +191,7 @@ Where:
 -  *name* is an identifier of the application that is added to your log entries
 -  *path* is an absolute path to the file you wish to follow
 -  *token* is the token for destination log created in Logentries
+-  *token* is the token for destination log created in Logentriesdirectori
 
 Alternatively, instead of `token` specify `destination` parameter in the format
 of `host name/log name'. The agent will search for the host and log identified
@@ -276,12 +277,12 @@ the Logentries infrastructure. Note that this behaviour is different from where
 a wildcard is used in the log filename - which is not allowed in this case.
 
 Example:
-For this example there is a number of directory's in /var/log/, each called 'apache-xx',
+For this example there is a number of directories in /var/log/, each called 'apache-xx',
 where the xx is a number that varies for each directory, such as 'apache-01', 
 'apache-02' and so on. In addition, within each directory, is a file called 'apache.log'.
 
 We want to follow all 'apache.log' files in each of these directories, with the log
-events from all log files sent to a destination log in the Logntries infrastructure 
+events from all log files sent to a destination log in the Logentries infrastructure 
 that we want to name 'Apache'.
 
 The command 'follow' is combined with the '--multilog' option to use the wildcard 
