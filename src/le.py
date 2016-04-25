@@ -1514,6 +1514,7 @@ class FollowMultilog(object):
         try:
             candidates = glob.glob(self.name)
             if len(candidates) == 0:
+                log.error("FollowMultilog: no files found in OS to be followed")
                 return None
             return candidates
         except os.error:
@@ -2585,33 +2586,55 @@ class Config(object):
                     values[1])
         self.datahub = value
 
-    def validate_pathname(self, args):
+    def validate_pathname(self, args=None, cmd_line=True, path=None):
         """
         For the '--multilog' option where a wildcard can be used in the directory name.
-        Validates the string that is passed to the agent (LOG-7549).
+        Validates the string that is passed to the agent from command line, config file or server.
+        If error from command line, then error message written to commnd line and agent quits.
+        If error from config file (or server) then error message written to log and False if returned.
         :param args: the pathname given to the agent
         :return:    True if okay, the agent will die otherwise
-        """
-        pname_slice = args[1:]
-        # validate that a pathname is detected in parameters to agent
-        if len(pname_slice) == 0:
-            die("\nError: No pathname detected - Specify the path to the file to be followed\n" + MULTILOG_USAGE, EXIT_OK)
-        # validate that agent is not receiving a list of pathnames (possibly shell is expanding wildcard)
-        if len(pname_slice) > 1:
-            die("\nError: Too many arguments being passed to agent\n" + MULTILOG_USAGE, EXIT_OK)
-        pname = str(pname_slice[0])
+        """        
+        if cmd_line and path is None:
+            if args is not None:
+                pname_slice = args[1:]
+                # validate that a pathname is detected in parameters to agent
+                if len(pname_slice) == 0:
+                    die("\nError: No pathname detected - Specify the path to the file to be followed\n" + MULTILOG_USAGE, EXIT_OK)
+                # validate that agent is not receiving a list of pathnames (possibly shell is expanding wildcard)
+                if len(pname_slice) > 1:
+                    die("\nError: Too many arguments being passed to agent\n" + MULTILOG_USAGE, EXIT_OK)
+                pname = str(pname_slice[0])
+        elif not cmd_line and path is None:
+            #for anything not coming in on command line no output is written to command line
+            log.error("Error: Pathname argument is empty")
+            return False
+        elif not cmd_line and path is not None:
+            pname=path
         filename = os.path.basename(pname)
         # verify there is a filename
         if not filename:
-            die("\nError: No filename detected - Specify the filename to be followed\n" + MULTILOG_USAGE, EXIT_OK)
+            if not cmd_line:
+                log.error("Error: No filename detected in the pathname")
+                return False
+            else:
+                die("\nError: No filename detected - Specify the filename to be followed\n" + MULTILOG_USAGE, EXIT_OK)
         # check if a wildcard detected in pathname
         if '*' in pname:
             # verify that only one wildcard is in pathname
             if pname.count('*') > 1:
-                die("\nError: Only one wildcard * allowed\n" + MULTILOG_USAGE, EXIT_OK)
+                if not cmd_line:
+                    log.error("Error: More then one wildcard * detected in pathname")
+                    return False
+                else:                
+                    die("\nError: Only one wildcard * allowed\n" + MULTILOG_USAGE, EXIT_OK)
             # verify that no wildcard is in filename
             if '*' in filename:
-                die("\nError: No wildcard * allowed in filename\n" + MULTILOG_USAGE, EXIT_OK)
+                if not cmd_line:
+                    log.error("Error: Wildcard detected in filename of path argument")
+                    return False
+                else:
+                    die("\nError: No wildcard * allowed in filename\n" + MULTILOG_USAGE, EXIT_OK)
         return True
 
     def process_params(self, params):
@@ -2725,7 +2748,7 @@ class Config(object):
                 self.set_datahub_settings(value)
             elif name == "--multilog":
                 # multilog is only True if pathname is good
-                self.multilog = self.validate_pathname(args)
+                self.multilog = self.validate_pathname(args,True,None)
 
         if self.datahub_ip and not self.datahub_port:
             if self.suppress_ssl:
@@ -3264,12 +3287,12 @@ def start_followers(default_transport):
             log_token = ''
             if l['type'] == 'token':
                 log_token = l['token']
-
-            # todo log.info("Prior to prefix removal:log_filename %s",log_filename )
-            if log_filename.startswith(PREFIX_MULTILOG_FILENAME):
-                multilog_filename = True
+            
+            if log_filename.startswith(PREFIX_MULTILOG_FILENAME):                                    
                 log_filename = log_filename.replace(PREFIX_MULTILOG_FILENAME,'',1).lstrip()
-            # todo log.info("After prefix removal:log_filename %s",log_filename )
+                if not config.validate_pathname(None,False,log_filename):
+                    continue
+                multilog_filename = True
 
             # Do not start a follower for a log with absent filepath.
             if not check_file_name(log_filename):

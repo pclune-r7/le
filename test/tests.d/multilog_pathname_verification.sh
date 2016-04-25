@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 . vars
 
@@ -14,7 +14,7 @@ Scenario 'Verification of pathname rules with use of the --multilog parameter'
 
 Testcase 'Init'
 
-$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MUTLIPLE_KEY
+$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MULTILOG_KEY
 #e Initialized
 
 Testcase 'Error message displayed when follow command used with more then one wildcard in pathname'

@@ -191,7 +191,6 @@ Where:
 -  *name* is an identifier of the application that is added to your log entries
 -  *path* is an absolute path to the file you wish to follow
 -  *token* is the token for destination log created in Logentries
--  *token* is the token for destination log created in Logentriesdirectori
 
 Alternatively, instead of `token` specify `destination` parameter in the format
 of `host name/log name'. The agent will search for the host and log identified

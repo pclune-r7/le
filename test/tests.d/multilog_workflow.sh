@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 . vars
 
@@ -13,7 +13,7 @@ Scenario 'Agent follows files using --multilog parameter'
 
 Testcase 'Init'
 
-$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MUTLIPLE_KEY
+$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MULTILOG_KEY
 #e Initialized
 
 
@@ -57,7 +57,7 @@ Scenario 'Agent follows multiple files with the same filename across a number of
 
 Testcase 'Init'
 
-$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MUTLIPLE_KEY
+$LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MULTILOG_KEY
 #e Initialized
 
 
