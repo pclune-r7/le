@@ -14,7 +14,7 @@ LE="$DIR/../src/le.py --local --debug --config $CONFIG --config.d $CONFIG_D"
 
 ACCOUNT_KEY=f720fe54-879a-11e4-81ac-277d856f873e
 HOST_KEY=41ae887a-284a-4d78-91fe-56485b076148
-HOST_MUTLIPLE_KEY=9df0ea6f-36fa-820f-a6bc-c97da8939a06
+HOST_MULTILOG_KEY=9df0ea6f-36fa-820f-a6bc-c97da8939a06
 
 LE_PID=''
 API_MOCK_PID=''

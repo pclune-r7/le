@@ -1503,24 +1503,6 @@ class FollowMultilog(object):
         self._worker.daemon = True
         self._worker.start()
 
-    def _file_candidates(self):
-        """
-        Return a list of files found for the pathanme passed in
-        need to switch off the globing in each follower!!!!!
-        we put the max here
-        also the dynmaic action will be called from here
-        """
-        ##todo manage dynamic code in this function
-        try:
-            candidates = glob.glob(self.name)
-            if len(candidates) == 0:
-                log.error("FollowMultilog: no files found in OS to be followed")
-                return None
-            return candidates
-        except os.error:
-            #todo log.debug error
-            return None
-
     def _file_test(self, candidate):
         """
         Only regular files passed
@@ -1532,7 +1514,32 @@ class FollowMultilog(object):
         if not os.path.isfile(candidate):
             return False
         return True
+    
+    def _append_followers(self, add_files):
+        
+        for filename in add_files:
+            if len(self._followers) < self._max_num_followers:
+        
+                follower = Follower(filename, self.entry_filter, self.entry_formatter, self.entry_identifier, self.transport, True)
+                self._followers.append(follower)                
+            else:
+                log.debug("Warning: Allowed maximum of files that can be followed reached")
+                break
+                
+        if config.debug_multilog:
+            print >> sys.stderr, "Length of list of followers after appending new follower: %s " %len(self._followers)
+       
+    def _remove_followers(self, removed_files):
+        
+        for follower in self._followers:
+            if follower.name in removed_files:
+                log.info("remove follower!")
+                follower.close()
+                self._followers.remove(follower)
 
+        if config.debug_multilog:
+            print >> sys.stderr, "Length of list of followers after removing follower: %s " %len(self._followers)
+        
     def close(self):
         """
         Stops all FollowMultilog activity, and then loops through list of existing
@@ -1543,25 +1550,32 @@ class FollowMultilog(object):
         for follower in self._followers:
             follower.close()
         self._worker.join(1.0)
-
+        
     def start_followers(self):
         """
          Instantiates a Follower object for each file found - all log events from all
          files are forwarded to the same log in the lE infrastructure
-        """
-        file_count = 0
-        file_candidates = self._file_candidates()
-        # todo log.info self.name
-        for filename in file_candidates:
-            if self._file_test(filename):
-                if file_count < self._max_num_followers:
-                    follower = Follower(filename, self.entry_filter, self.entry_formatter, self.entry_identifier, self.transport, True)
-                    self._followers.append(follower)
-                    file_count = file_count+1
-                else:
-                    #log.info max number of 100 files reached
-                    break
-
+        """ 
+        try:
+            start_set = set([filename for filename in glob.glob(self.name)])         
+        except os.error:
+            log.error("Error: FollowerMultiple glob has failed")
+        if len(start_set) == 0:
+            log.error("FollowMultilog: no files found in OS to be followed")
+        else:
+            self._append_followers(start_set)
+        while not self._shutdown:
+            time.sleep(0.250)
+            try:
+                current_set = set([filename for filename in glob.glob(self.name)])                
+            except os.error:
+                log.error("Error: FollowerMultiple glob has failed")
+            followed_files = [follower.name for follower in self._followers]
+            added_files = [filename for filename in current_set if not filename in followed_files]            
+            self._append_followers(added_files)                
+            removed_files = [filename for filename in followed_files if not filename in current_set]
+            self._remove_followers(removed_files)
+                                          
 
 class Follower(object):
 
