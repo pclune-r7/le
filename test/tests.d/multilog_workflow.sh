@@ -4,7 +4,8 @@
 
 #############                                                      ##############
 #       "multilog workflow"                                                     #
-#       test scenarios: behaviour of agent with the --multilog parameter        #
+#       Test Scope: behaviour of agent with the --multilog parameter            #            
+#       using server side configuration                                         #
 #                                                                               #
 #############                                                      ##############
 
@@ -15,7 +16,6 @@ Testcase 'Init'
 
 $LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MULTILOG_KEY
 #e Initialized
-
 
 Testcase 'Use --multilog parameter with pathname with no wildcard'
 
@@ -28,7 +28,6 @@ $LE follow --debug-multilog "$TMP/apache-01/current" --multilog
 #e Don't forget to restart the daemon
 #e   sudo service logentries restart
 
-
 Testcase 'Use --multilog parameter with wildcard in a directory name in pathname'
 
 $LE follow --debug-multilog "$TMP/apache*/current" --multilog
@@ -40,8 +39,8 @@ $LE follow --debug-multilog "$TMP/apache*/current" --multilog
 #e Don't forget to restart the daemon
 #e   sudo service logentries restart
 
-
 Testcase 'Use the --name= option to specify log name when setting up files to follow'
+
 $LE follow --debug-multilog "$TMP/apache-*/current" --multilog --name=ApacheWeb
 #e Configuration files loaded: sandbox_config
 #e Connecting to 127.0.0.1:8081
@@ -51,7 +50,6 @@ $LE follow --debug-multilog "$TMP/apache-*/current" --multilog --name=ApacheWeb
 #e Don't forget to restart the daemon
 #e   sudo service logentries restart
 
-
 # Reference: LOG-7549
 Scenario 'Agent follows multiple files with the same filename across a number of directories, writing to the one log'
 
@@ -60,10 +58,7 @@ Testcase 'Init'
 $LE init --account-key=$ACCOUNT_KEY --host-key=$HOST_MULTILOG_KEY
 #e Initialized
 
-
 Testcase 'Verify agent follows files of the same filename across multiple directories'
-# todo need a similar testcase that shows events being sent to the same log - using token?
-# todo need a similar testcase for dynamic behaviour - add and removing directories after agent starts monitoring
 
 mkdir apache-01
 touch apache-01/current
@@ -80,7 +75,6 @@ $LE --debug-events monitor &
 #e List response: {"object": "loglist", "list": [{"name": "Apache", "key": "484d6e95-a4e1-42fe-820f-5a4c0824428c", "created": 1418711930412, "retention": -1, "follow": "true", "object": "log", "type": "agent", "filename": "Multilog:$TMP/apache*/current"}], "response": "ok"}
 #e Following $TMP/apache*/current
 #e Opening connection 127.0.0.1:8081 PUT /f720fe54-879a-11e4-81ac-277d856f873e/hosts/9df0ea6f-36fa-820f-a6bc-c97da8939a06/484d6e95-a4e1-42fe-820f-5a4c0824428c/?realtime=1 HTTP/1.0
-
 LE_PID=$!
 
 sleep 1
@@ -97,15 +91,3 @@ sleep 1
 # tidy up test directory and daemon
 rm -rf apache*
 kill $LE_PID
-
-
-#Scenario Need test cases for
-
-#Testcase 'Warning message displayed when no file found with valid pathname'
-# this test case will need to be changed/deleted when 'dynamic' file following behaviour introduced
-
-#$LE follow '/apache-01/newlog' --multilog
-##eConfiguration files loaded: sandbox_config
-##e
-##eWarning: No Files found for /apache-01/newlog
-##e

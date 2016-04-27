@@ -4,11 +4,10 @@
 
 #############                                                      ##############
 #       "multilog configuration"                                                #
-#       test scenarios: verification of use of configuration file(s),           #
-#       with the --multilog parameter                                           #
+#       Test Scope: Use of client configuration file with a multilog            # 
+#       wildcard pathname for monitoring of files.                              #
 #                                                                               #
 #############                                                      ##############
-
 
 Scenario 'Using client side configuration with multilog pathname'
 
@@ -71,8 +70,4 @@ sleep 1
 # tidy up test directory and daemon
 rm -rf apache*
 kill $LE_PID
-
-
-
-
 

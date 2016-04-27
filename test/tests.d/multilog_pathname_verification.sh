@@ -4,7 +4,7 @@
 
 #############                                                      ##############
 #       "multilog pathname verification"                                        #
-#       test scenarios: verification of pathname passed to agent,               #
+#       Test Scope: verification of pathname passed to agent,               #
 #       with the --multilog parameter                                           #
 #                                                                               #
 #############                                                      ##############
@@ -32,7 +32,6 @@ $LE follow '$TMP/apache-*/*/current' --multilog
 #e         example: "/var/log/directory*/file.log"
 #e
 
-
 Testcase 'Error message displayed when follow command used with wildcard for filename'
 
 $LE follow '$TMP/apache-01/*' --multilog
@@ -47,7 +46,6 @@ $LE follow '$TMP/apache-01/*' --multilog
 #e   Place path name with wildcard between single quotes:
 #e         example: "/var/log/directory*/file.log"
 #e
-
 
 Testcase 'Error message displayed when follow command used with wildcard in partial filename'
 
@@ -64,7 +62,6 @@ $LE follow '$TMP/apache-01/curr*' --multilog
 #e         example: "/var/log/directory*/file.log"
 #e
 
-
 Testcase 'Error message displayed when follow command used with wildcard in partial filename, without single quotes'
 
 $LE follow $TMP/apache-01/curr* --multilog
@@ -79,7 +76,6 @@ $LE follow $TMP/apache-01/curr* --multilog
 #e   Place path name with wildcard between single quotes:
 #e         example: "/var/log/directory*/file.log"
 #e
-
 
 Testcase 'Error message displayed when follow command used with wildcard expanded by shell'
 # Example of where shell expansion of wildcard occurs because sigle quotes were not used,
@@ -108,7 +104,6 @@ $LE follow $TMP/*/current --multilog
 # tidy up test directory's
 rm -rf apache*
 
-
 Testcase 'Error message displayed when follow command used with no pathname'
 
 $LE follow  --multilog
@@ -124,7 +119,6 @@ $LE follow  --multilog
 #e         example: "/var/log/directory*/file.log"
 #e
 
-
 Testcase 'Error message displayed when follow command used with wildcard but no filename'
 
 $LE follow  '/*/' --multilog
@@ -139,7 +133,6 @@ $LE follow  '/*/' --multilog
 #e   Place path name with wildcard between single quotes:
 #e         example: "/var/log/directory*/file.log"
 #e
-
 
 Testcase 'Error message displayed when follow command used with empty string'
 

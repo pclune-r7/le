@@ -332,11 +332,17 @@ So as per the example above, for the log 'Apache', may return a list like this:
     Apache      Multiple:/var/log/apache*/apache.log
     Cassandra   /srv/log/cassandra/system.out
 
-The second list will display any and all files found by the agent after processing
-the pathname. This list reflects the files that will be followed by the agent for
-this pathname - however, the files actually followed may differ if directories 
-are deleted or added before the agent has been restarted or is actively monitoring
-the log files.
+The second list will display any files found by the agent at this time after 
+processing the pathname that fall within the scope of the wildcard. This list
+reflects the files that will be followed by the agent for this pathname however,
+the files actually followed may differ if directories are deleted or added 
+before the agent has been restarted or is actively monitoring the log files. 
+
+The agent will detect where directories that have a file being followed
+is deleted, and will stop following that file. Like wise the agent will monitor
+for directories with a file that falls within the scope of the wildcard expansion.
+If such a directory is created while the agent is active, it will attempt to 
+follow this new file - with the same log settings.
 
 The user then has the option to quit without setting any new files to be followed
 or the user may continue, in which case the agent will process the pathname.
@@ -355,6 +361,19 @@ same log file falling within the scope of both destination directories:
   
 It is recommended to avoid scenarios like this.
 
+### Client Configuration File
+As explained above in the section on using the client side configuration to 
+follow files, a similar configuration section can used to set up a pathname
+with a wildcard - as long as the pathname meets the same rules for one 
+entered via the command line.
+ 
+The prefix Multilog: is mandatory.
+
+Example: 
+
+    [Apache]
+	path = Multilog:/var/log/apache*/current
+	token = MY_TOKEN
 
 
 Manipulate your data in transit
