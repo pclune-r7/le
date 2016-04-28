@@ -44,5 +44,6 @@ $LE
 #e                           the format is address:port with port being optional
 #e   --system-stat-token=    set the token for system stats log (beta)
 #e   --pull-server-side-config=False do not use server-side config for following files
+#e   --multilog              option used with directory wildcard * (restricted behaviour)
 #e
 
